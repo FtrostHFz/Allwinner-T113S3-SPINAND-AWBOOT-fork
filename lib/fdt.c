@@ -229,11 +229,11 @@ static int of_get_nextnode_offset(void *blob, int start_offset, int *offset, int
 
 static int of_get_node_offset(void *blob, const char *name, int *offset)
 {
-	int start_offset = 0, nodeoffset = 0, nextoffset = 0, depth = 0;
+	int			 start_offset = 0, nodeoffset = 0, nextoffset = 0, depth = 0;
 	unsigned int token;
 	unsigned int namelen = strlen(name);
-	char *nodename;
-	int ret;
+	char		*nodename;
+	int			 ret;
 
 	ret = of_get_token_nextoffset(blob, 0, &start_offset, &token);
 	if (ret)
@@ -242,8 +242,7 @@ static int of_get_node_offset(void *blob, const char *name, int *offset)
 	while (1) {
 		ret = of_get_nextnode_offset(blob, start_offset, &nodeoffset, &nextoffset, &depth);
 		if (ret) {
-			debug("DT: of_get_nextnode_offset failed, ret=%d depth=%d start_offset=0x%x\r\n",
-			      ret, depth, start_offset);
+			debug("DT: of_get_nextnode_offset failed, ret=%d depth=%d start_offset=0x%x\r\n", ret, depth, start_offset);
 			return ret;
 		}
 
@@ -251,7 +250,7 @@ static int of_get_node_offset(void *blob, const char *name, int *offset)
 			return -1;
 
 		nodename = (char *)of_dt_struct_offset(blob, (nodeoffset + 4));
-		debug("DT: visiting node '%s' (depth=%d)\r\n", nodename, depth);   /* <-- tambahan */
+		debug("DT: visiting node '%s' (depth=%d)\r\n", nodename, depth); /* <-- tambahan */
 
 		if ((memcmp(nodename, name, namelen) == 0) && ((nodename[namelen] == '\0') || (nodename[namelen] == '@')))
 			break;
@@ -319,7 +318,7 @@ static int of_get_next_property_offset(void *blob, int startoffset, int *offset,
 			ret			  = 0;
 			break;
 		} else if (token == OF_DT_TOKEN_NOP) {
-			startoffset = nextoffset;   /* <-- pindah ke sini */
+			startoffset = nextoffset; /* <-- pindah ke sini */
 			continue;
 		} else {
 			ret = -1;
@@ -493,15 +492,15 @@ static int of_set_property(void *blob, int nodeoffset, const char *property_name
 static unsigned int of_get_property_cells(void *blob, int nodeoffset, const char *property_name)
 {
 	int			 property_offset;
-	unsigned int	len;
-	unsigned int	cells = (sizeof(uintptr_t) > 4U) ? 2U : 1U;
+	unsigned int len;
+	unsigned int cells = (sizeof(uintptr_t) > 4U) ? 2U : 1U;
 
 	if (of_get_property_offset_by_name(blob, nodeoffset, property_name, &property_offset) != 0) {
 		return cells;
 	}
 
 	unsigned int *plen = (unsigned int *)of_dt_struct_offset(blob, property_offset + 4);
-	len = swap_uint32(*plen);
+	len				   = swap_uint32(*plen);
 
 	if (len == 8U) {
 		return 2U;
@@ -518,13 +517,13 @@ static void of_encode_cells_be(uint8_t *dst, unsigned int cells, uint64_t value)
 	if (cells > 1U) {
 		uint32_t hi = (uint32_t)(value >> 32);
 		uint32_t lo = (uint32_t)(value & 0xffffffffU);
-		hi = swap_uint32(hi);
-		lo = swap_uint32(lo);
+		hi			= swap_uint32(hi);
+		lo			= swap_uint32(lo);
 		_memcpy(dst, &hi, sizeof(hi));
 		_memcpy(dst + sizeof(hi), &lo, sizeof(lo));
 	} else {
 		uint32_t val32 = (uint32_t)(value & 0xffffffffU);
-		val32 = swap_uint32(val32);
+		val32		   = swap_uint32(val32);
 		_memcpy(dst, &val32, sizeof(val32));
 	}
 }
@@ -573,8 +572,8 @@ int fdt_update_initrd(void *blob, uint32_t start, uint32_t end)
 	int			 ret;
 	unsigned int start_cells;
 	unsigned int end_cells;
-	uint8_t	 start_buf[8];
-	uint8_t	 end_buf[8];
+	uint8_t		 start_buf[8];
+	uint8_t		 end_buf[8];
 
 	if (start == 0U || end == 0U || end <= start) {
 		warning("DT: invalid initrd range start=0x%08" PRIx32 " end=0x%08" PRIx32 "\r\n", start, end);
@@ -588,7 +587,7 @@ int fdt_update_initrd(void *blob, uint32_t start, uint32_t end)
 	}
 
 	start_cells = of_get_property_cells(blob, nodeoffset, "linux,initrd-start");
-	end_cells   = of_get_property_cells(blob, nodeoffset, "linux,initrd-end");
+	end_cells	= of_get_property_cells(blob, nodeoffset, "linux,initrd-end");
 
 	if (start_cells > 2U) {
 		start_cells = 2U;
@@ -600,15 +599,13 @@ int fdt_update_initrd(void *blob, uint32_t start, uint32_t end)
 	of_encode_cells_be(start_buf, start_cells, (uint64_t)start);
 	of_encode_cells_be(end_buf, end_cells, (uint64_t)end);
 
-	ret = of_set_property(blob, nodeoffset, "linux,initrd-start", start_buf,
-				  (int)(start_cells * sizeof(uint32_t)));
+	ret = of_set_property(blob, nodeoffset, "linux,initrd-start", start_buf, (int)(start_cells * sizeof(uint32_t)));
 	if (ret) {
 		warning("DT: could not set linux,initrd-start property\r\n");
 		return ret;
 	}
 
-	ret = of_set_property(blob, nodeoffset, "linux,initrd-end", end_buf,
-				  (int)(end_cells * sizeof(uint32_t)));
+	ret = of_set_property(blob, nodeoffset, "linux,initrd-end", end_buf, (int)(end_cells * sizeof(uint32_t)));
 	if (ret) {
 		warning("DT: could not set linux,initrd-end property\r\n");
 		return ret;

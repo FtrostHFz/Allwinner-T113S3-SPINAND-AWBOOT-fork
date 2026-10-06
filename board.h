@@ -17,20 +17,20 @@
 
 #define RTC_BKP_REG(n) *((uint32_t *)((0x07090100) + (n * 4)))
 
-#define MB(x) ((uint32_t)(x) * 1024U * 1024U)
-#define CONFIG_INITRAMFS_MAX_SIZE   MB(25)
+#define MB(x)					  ((uint32_t)(x) * 1024U * 1024U)
+#define CONFIG_INITRAMFS_MAX_SIZE MB(25)
 
-#define CONFIG_KERNEL_LOAD_ADDR	    (SDRAM_BASE + MB(32))
-#define CONFIG_DTB_GUARD_SIZE	      MB(1)
+#define CONFIG_KERNEL_LOAD_ADDR (SDRAM_BASE + MB(32))
+#define CONFIG_DTB_GUARD_SIZE	MB(1)
 
-#define CONFIG_INITRD_ALIGNMENT	  64U
+#define CONFIG_INITRD_ALIGNMENT 64U
 
 // FEL mailbox layout (must match host FEL script)
-#define CONFIG_FEL_MAILBOX_BASE    0x43100000U
+#define CONFIG_FEL_MAILBOX_BASE		  0x43100000U
 #define CONFIG_MAIL_INITRD_SIZE_ADDR  (CONFIG_FEL_MAILBOX_BASE + 0x0U)
 #define CONFIG_MAIL_INITRD_START_ADDR (CONFIG_FEL_MAILBOX_BASE + 0x4U)
-#define CONFIG_MAIL_DTB_ADDR_ADDR      (CONFIG_FEL_MAILBOX_BASE + 0x8U)
-#define CONFIG_MAIL_KERNEL_ADDR_ADDR   (CONFIG_FEL_MAILBOX_BASE + 0xCU)
+#define CONFIG_MAIL_DTB_ADDR_ADDR	  (CONFIG_FEL_MAILBOX_BASE + 0x8U)
+#define CONFIG_MAIL_KERNEL_ADDR_ADDR  (CONFIG_FEL_MAILBOX_BASE + 0xCU)
 
 #define CONFIG_CONF_FILENAME	"boot.cfg"
 #define CONFIG_DEFAULT_BOOT_CMD "earlycon=uart8250,mmio32,0x02500c00 console=ttyS3,115200 earlyprintk panic=0"
@@ -54,7 +54,14 @@
 
 #define CONFIG_PSCI_DRAM_RESERVE 0x00010000U
 
-#define LED_BOARD  1
+// A/B test: 1 = jump secure SVC bypass PSCI, 0 = PSCI NS HYP
+#define CONFIG_BOOT_LINUX_SECURE_DIRECT 0
+
+// ************ handoff test config ****
+#define DEBUG_HANDOFF_TEST 0
+#define debug_handoff_test DEBUG_HANDOFF_TEST
+
+#define LED_BOARD 1
 
 extern sunxi_usart_t usart0_dbg;
 extern sunxi_usart_t usart3_dbg;
@@ -68,6 +75,6 @@ void board_init(void);
 void board_set_led(uint8_t num, uint8_t on);
 
 #define USART_DBG usart3_dbg
-#define SDHCI sdhci0
+#define SDHCI	  sdhci0
 
 #endif

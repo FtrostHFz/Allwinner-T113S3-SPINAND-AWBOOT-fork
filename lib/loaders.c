@@ -22,7 +22,7 @@ FATFS fs;
 static FRESULT read_stream(const char *path, void (*consume)(const uint8_t *, UINT))
 {
 	FRESULT fret;
-	FIL	file;
+	FIL		file;
 	UINT	bytes_read = 0U;
 
 	if ((path == NULL) || (consume == NULL))
@@ -33,9 +33,9 @@ static FRESULT read_stream(const char *path, void (*consume)(const uint8_t *, UI
 		return fret;
 
 	static DWORD cltbl[CLTBL_DWORDS];
-	cltbl[0]    = CLTBL_DWORDS;
-	file.cltbl  = cltbl;
-	fret = f_lseek(&file, CREATE_LINKMAP);
+	cltbl[0]   = CLTBL_DWORDS;
+	file.cltbl = cltbl;
+	fret	   = f_lseek(&file, CREATE_LINKMAP);
 	if (fret == FR_NOT_ENOUGH_CORE) {
 		f_close(&file);
 		return fret;
@@ -46,7 +46,7 @@ static FRESULT read_stream(const char *path, void (*consume)(const uint8_t *, UI
 	}
 
 	static uint8_t buf[READ_CHUNK];
-	FRESULT     read_result = FR_OK;
+	FRESULT		   read_result = FR_OK;
 	do {
 		fret = f_read(&file, buf, READ_CHUNK, &bytes_read);
 		if (fret != FR_OK) {
@@ -58,7 +58,7 @@ static FRESULT read_stream(const char *path, void (*consume)(const uint8_t *, UI
 		consume(buf, bytes_read);
 	} while (bytes_read == READ_CHUNK);
 
-	file.cltbl = NULL;
+	file.cltbl			 = NULL;
 	FRESULT close_result = f_close(&file);
 	if (read_result != FR_OK)
 		return read_result;
@@ -67,7 +67,7 @@ static FRESULT read_stream(const char *path, void (*consume)(const uint8_t *, UI
 
 typedef struct {
 	uint8_t *dest;
-	u32	 total;
+	u32		 total;
 } read_copy_state_t;
 
 static read_copy_state_t read_copy_state;
@@ -158,7 +158,7 @@ int read_file(const char *filename, uint8_t *dest)
 	u32 total_bytes = read_copy_state.total;
 
 #if LOG_LEVEL >= LOG_DEBUG
-	u32 duration	 = time_ms() - start + 1U;
+	u32 duration   = time_ms() - start + 1U;
 	f32 throughput = ((f32)total_bytes / (f32)duration) / 1024.0f;
 	debug("FATFS: %s read in %" PRIu32 "ms at %.2fMB/S\r\n", filename, duration, throughput);
 #endif
@@ -208,6 +208,42 @@ int load_sdmmc(image_info_t *image)
 #endif
 
 #if CONFIG_BOOT_SPINAND
+#if LOG_LEVEL >= LOG_DEBUG
+// ************ crc32 debug: compare DRAM vs host file ****
+static uint32_t crc32_calc(const uint8_t *p, uint32_t len)
+{
+	uint32_t crc = 0xffffffffu;
+	uint32_t i;
+
+	while (len--) {
+		crc ^= *p++;
+
+		for (i = 0; i < 8; i++) {
+			crc = (crc >> 1) ^ (0xedb88320u & (0u - (crc & 1u)));
+		}
+	}
+
+	return ~crc;
+}
+
+// crc per NAND block, odd block = plane 1
+static void crc32_dump_blocks(sunxi_spi_t *spi, const uint8_t *buf, uint32_t flash_addr, uint32_t size)
+{
+	const uint32_t blk = spi->info.page_size * spi->info.pages_per_block;
+	uint32_t	   off = 0;
+	uint32_t	   n;
+
+	while (off < size) {
+		n = ((size - off) > blk) ? blk : (size - off);
+
+		debug("SPI-NAND: blk %3" PRIu32 " (plane %" PRIu32 ") crc32=0x%08" PRIx32 "\r\n", (flash_addr + off) / blk,
+			  ((flash_addr + off) / blk) & 1u, crc32_calc(buf + off, n));
+
+		off += n;
+	}
+}
+#endif
+
 int load_spi_nand(sunxi_spi_t *spi, image_info_t *image)
 {
 	linux_zimage_header_t *hdr;
@@ -232,6 +268,11 @@ int load_spi_nand(sunxi_spi_t *spi, image_info_t *image)
 	time = time_us() - start;
 	info("SPI-NAND: read dt blob of size %u at %.2fMB/S\r\n", size, (f32)(size / time));
 
+#if LOG_LEVEL >= LOG_DEBUG
+	// crc dtb sebelum patch bootargs/memory
+	debug("SPI-NAND: dtb crc32=0x%08" PRIx32 " size=%u\r\n", crc32_calc(image->dtb_dest, size), size);
+#endif
+
 	/* get kernel size and read */
 	spi_nand_read(spi, image->kernel_dest, CONFIG_SPINAND_KERNEL_ADDR, (uint32_t)sizeof(linux_zimage_header_t));
 	hdr = (linux_zimage_header_t *)image->kernel_dest;
@@ -246,6 +287,11 @@ int load_spi_nand(sunxi_spi_t *spi, image_info_t *image)
 	spi_nand_read(spi, image->kernel_dest, CONFIG_SPINAND_KERNEL_ADDR, (uint32_t)size);
 	time = time_us() - start;
 	info("SPI-NAND: read Image of size %u at %.2fMB/S\r\n", size, (f32)(size / time));
+
+#if LOG_LEVEL >= LOG_DEBUG
+	debug("SPI-NAND: zImage crc32=0x%08" PRIx32 " size=%u\r\n", crc32_calc(image->kernel_dest, size), size);
+	crc32_dump_blocks(spi, image->kernel_dest, CONFIG_SPINAND_KERNEL_ADDR, size);
+#endif
 
 	return 0;
 }

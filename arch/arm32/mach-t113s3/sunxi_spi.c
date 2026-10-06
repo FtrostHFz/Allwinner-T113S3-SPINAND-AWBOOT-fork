@@ -755,6 +755,8 @@ uint32_t spi_nand_read(sunxi_spi_t *spi, uint8_t *buf, uint32_t addr, uint32_t r
 	uint32_t n;
 	uint32_t len = 0;
 	uint32_t ca;
+	uint32_t cpa;
+	uint32_t plane;
 	uint32_t txlen = 4;
 	uint8_t	 tx[6];
 
@@ -784,16 +786,24 @@ uint32_t spi_nand_read(sunxi_spi_t *spi, uint8_t *buf, uint32_t addr, uint32_t r
 		return -1;
 	}
 
-	if (spi->info.id.mfr == SPI_NAND_MFR_GIGADEVICE) {
+	// ************ page-by-page read: Gigadevice, Macronix, Micron ****
+	if (spi->info.id.mfr != SPI_NAND_MFR_WINBOND) {
 		while (cnt > 0) {
 			ca = address & (spi->info.page_size - 1);
 			n  = cnt > (spi->info.page_size - ca) ? (spi->info.page_size - ca) : cnt;
 
 			spi_nand_load_page(spi, address);
 
+			// plane select CA[12] = block bit0, multi-plane only
+			cpa = ca;
+			if (spi->info.planes_per_die > 1) {
+				plane = (address / spi->info.page_size / spi->info.pages_per_block) % spi->info.planes_per_die;
+				cpa |= plane << (__builtin_ctz(spi->info.page_size) + 1);
+			}
+
 			tx[0] = read_opcode;
-			tx[1] = (uint8_t)(ca >> 8);
-			tx[2] = (uint8_t)(ca >> 0);
+			tx[1] = (uint8_t)(cpa >> 8);
+			tx[2] = (uint8_t)(cpa >> 0);
 			tx[3] = 0x0;
 
 			spi_transfer(spi, spi->info.mode, tx, 4, buf, n);

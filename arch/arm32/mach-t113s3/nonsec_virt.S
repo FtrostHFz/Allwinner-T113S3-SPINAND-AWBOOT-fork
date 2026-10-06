@@ -34,15 +34,6 @@ _monitor_vectors:
 	cmp	\tmp, #(1 << CPUID_ARM_VIRT_SHIFT)
 .endm
 
-.macro uart_putc_raw char
-	ldr	r8, =0x02500C00
-	mov	r9, #\char
-1:	ldr	r10, [r8, #0x14]
-	tst	r10, #0x20
-	beq	1b
-	str	r9, [r8, #0x00]
-.endm
-
 /*
  * secure monitor handler
  * U-Boot calls this "software interrupt" in start.S
@@ -53,30 +44,22 @@ _monitor_vectors:
  */
 _secure_monitor:
 
-	uart_putc_raw 'A'
-
 #ifdef CONFIG_ARMV7_PSCI
 	ldr	r5, =_psci_vectors		@ Switch to the next monitor
 	mcr	p15, 0, r5, c12, c0, 1
 	isb
 
-	uart_putc_raw 'B'
-
 	@ Obtain a secure stack
 	bl	psci_stack_setup
-
-	uart_putc_raw 'C'
 
 	@ Configure the PSCI backend
 	push	{r0, r1, r2, ip}
 	bl	psci_arch_init
 
-	uart_putc_raw 'D'
 
 	pop	{r0, r1, r2, ip}
 #endif
 
-	uart_putc_raw 'E'
 	mrc	p15, 0, r5, c1, c1, 0		@ read SCR
 	bic	r5, r5, #0x4a			@ clear IRQ, EA, nET bits
 	orr	r5, r5, #0x31			@ enable NS, AW, FW bits
@@ -93,8 +76,6 @@ _secure_monitor:
 	mcr	p15, 0, r5, c1, c1, 0		@ write SCR (with NS bit set)
 	isb
 
-	uart_putc_raw 'F'
-
 	bne	1f
 
 	@ Reset CNTVOFF to 0 before leaving monitor mode
@@ -104,16 +85,12 @@ _secure_monitor:
 	mcrrne	p15, 4, r4, r4, c14		@ Reset CNTVOFF to zero
 1:
 
-	uart_putc_raw 'G'
-
 	mov	lr, ip
 	mov	ip, #(F_BIT | I_BIT | A_BIT)	@ Set A, I and F
 	tst	lr, #1				@ Check for Thumb PC
 	orrne	ip, ip, #T_BIT			@ Set T if Thumb
 	orr	ip, ip, r6			@ Slot target mode in
 	msr	spsr_cxfs, ip			@ Set full SPSR
-
-	uart_putc_raw 'H'
 
 	movs	pc, lr				@ ERET to non-secure
 
